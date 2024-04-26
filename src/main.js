@@ -1,7 +1,10 @@
 const tmi = require("tmi.js");
 
-CHANNEL_NAME = document.querySelector('meta[name="channel_name"]').content;
-MESSAGE_COUNT_LIMIT = 20;
+const CHANNEL_NAME = document.querySelector(
+  'meta[name="channel_name"]',
+).content;
+const MESSAGE_COUNT_LIMIT = 20;
+const tag_regex = new RegExp("({{.*?}})");
 
 function TwitchIrcClient(channelName) {
   // Init IRC client and join the channel
@@ -12,41 +15,28 @@ function TwitchIrcClient(channelName) {
 
   // IRC events
   this.client.on("connected", () => {
-    createSystemMessage("Connected to channel: " + channelName);
+    window.chat.addSystemMessage("Connected to channel: " + channelName);
   });
   this.client.on("disconnected", () => {
-    createSystemMessage("Disconnected from channel: " + channelName);
+    window.chat.addSystemMessage("Disconnected from channel: " + channelName);
   });
   this.client.on("message", (channel, tags, message, self) => {
-    createChatterMessage(tags, message);
+    window.chat.addChatterMessage(tags, message);
   });
+
   // Handles so I can access it from the browser console
   this.connect = this.client.connect.bind(this.client);
   this.disconnect = this.client.disconnect.bind(this.client);
 }
 
-function createChatterMessage(tags, message) {
-  chatterName = tags["display-name"];
-  chatterColor = tags["color"];
-  chatterMessage = message;
-
-  window.chat.addChatterMessage(chatterMessage, chatterName, chatterColor);
-  // DEBUG
-  console.log(`${chatterName}: ${chatterMessage}`);
-}
-
-function createSystemMessage(message) {
-  window.chat.addSystemMessage(message);
-  // DEBUG
-  console.log(message);
-}
-
 class Message extends HTMLParagraphElement {
+  emotes = undefined;
   message = "";
 
-  constructor(message) {
+  constructor(message, emotes = undefined) {
     super();
 
+    this.emotes = emotes;
     this.message = message;
   }
 
@@ -54,39 +44,74 @@ class Message extends HTMLParagraphElement {
     // Apply CSS
     this.setAttribute("class", "chat-message");
 
-    const messageText = document.createTextNode(this.message);
-    this.appendChild(messageText);
+    if (this.emotes) {
+      this.processEmotes(this.message, this.emotes, this);
+    } else {
+      this.appendChild(document.createTextNode(this.message));
+    }
 
-    // Making it more interesting
+    // Entrance animation
     setTimeout(() => {
       this.style.opacity = "1";
     }, 1);
   }
 
-  disconnectedCallback() {
-    //console.log("Custom element removed from page.");
-  }
+  processEmotes(message, emotes, rootEl) {
+    // DEBUG
+    console.log(this.emotes);
 
-  adoptedCallback() {
-    //console.log("Custom element moved to new page.");
-  }
+    const stringReplacements = [];
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    //console.log(`Attribute ${name} has changed.`);
-  }
+    // Iterate of emotes to access ids and positions
+    Object.entries(emotes).forEach(([id, positions]) => {
+      // Use only the first position to find out the emote key word
+      const position = positions[0];
+      const [start, end] = position.split("-");
+      const stringToReplace = message.substring(
+        parseInt(start, 10),
+        parseInt(end, 10) + 1,
+      );
 
-  addMessage(message) {
-    //usernameEl = createUsernameElement(username, usernameColor);
-    //messageEl = document.createElement("p");
-    //messageEl.appendChild(usernameEl);
+      stringReplacements.push({
+        stringToReplace: stringToReplace,
+        replacement: `{{ ${id} }}`,
+      });
+    });
+
+    // Generate template
+    const template = stringReplacements.reduce(
+      (t, { stringToReplace, replacement }) => {
+        // DEBUG
+        console.log("Message is:", message);
+        console.log("`t` is:", t);
+
+        return t.split(stringToReplace).join(replacement);
+      },
+      message,
+    );
+    // DEBUG
+    console.log("Template:", template);
+
+    const tokens = template.split(tag_regex);
+    console.log(tokens);
+    tokens.forEach((token_string) => {
+      let token_start = token_string.slice(0, 2);
+      if (token_start == "{{") {
+        const emoteId = token_string.slice(2, -2).trim();
+        rootEl.appendChild(new Emote(emoteId));
+      } else {
+        rootEl.appendChild(document.createTextNode(token_string));
+      }
+    });
   }
 }
 
 class ChatterMessage extends Message {
-  static observedAttributes = ["chatterUserNameColor"];
+  username = undefined;
+  usernameColor = undefined;
 
-  constructor(message, username, usernameColor) {
-    super(message);
+  constructor(message, emotes, username, usernameColor) {
+    super(message, emotes);
 
     this.username = username;
     this.usernameColor = usernameColor;
@@ -95,6 +120,7 @@ class ChatterMessage extends Message {
   connectedCallback() {
     this.addUsername(this.username, this.usernameColor);
     this.appendChild(document.createTextNode(": "));
+
     super.connectedCallback();
   }
 
@@ -120,6 +146,29 @@ class SystemMessage extends Message {
   }
 }
 
+class Emote extends HTMLImageElement {
+  emoteId = undefined;
+
+  constructor(emoteId) {
+    super();
+
+    this.emoteId = emoteId;
+  }
+
+  connectedCallback() {
+    // Set the source image of emote
+    this.setAttribute(
+      "src",
+      `https://static-cdn.jtvnw.net/emoticons/v1/${this.emoteId}/1.0`,
+    );
+    // Making it of line height
+    this.setAttribute("height", "19");
+    // Drag it down to the bottom of the text line so it doesn't
+    // stretch the message window upwards.
+    this.style.verticalAlign = "bottom";
+  }
+}
+
 class Chat extends HTMLElement {
   messageCountLimit = 0;
   static observedAttributes = ["messageCountLimit"];
@@ -127,39 +176,47 @@ class Chat extends HTMLElement {
   constructor(messageCountLimit = 20) {
     super();
 
-    this.messageCountLimit = messageCountLimit;
-  }
-
-  connectedCallback() {
-    // Get `main` element
-    //const main = document.getElementsByTagName("main")[0];
-    /** We need this to re-inverse the message addition order
-     *  Messages are added at the bottom with the scroll position
-     *  staying at the bottom as well.
-     */
-    this.appendChild(document.createElement("div"));
-    this.innerDiv = this.firstElementChild;
-    /** Message count limit property
+    /**
+     * Message count limit property.
      * Set messages limit. After reaching the max count of messages,
      * it'll start deleting oldest messages keeping the count
      * of messages within the limit.
      */
-    this.setAttribute("messageCountLimit", MESSAGE_COUNT_LIMIT);
+    this.messageCountLimit = messageCountLimit;
+  }
+
+  connectedCallback() {
+    /**
+     * We need this to re-inverse the message addition order.
+     * Messages are added at the bottom with the scroll position
+     * staying at the bottom as well.
+     */
+    this.appendChild(document.createElement("div"));
+    this.innerDiv = this.firstElementChild;
+
+    //this.setAttribute("messageCountLimit", MESSAGE_COUNT_LIMIT);
   }
 
   // This method creates a new message and shows it in the chat.
-  addChatterMessage(messageText, chatterName, chatterColor) {
-    const chatMessage = new ChatterMessage(
-      messageText,
-      chatterName,
-      chatterColor,
+  addChatterMessage(tags, message) {
+    const chatMessageEl = new ChatterMessage(
+      message,
+      tags["emotes"],
+      tags["display-name"],
+      tags["color"],
     );
-    this.#addMessage(chatMessage);
+    this.#addMessage(chatMessageEl);
+
+    // DEBUG
+    console.log(`${tags["display-name"]}: ${message}`);
   }
 
   addSystemMessage(message) {
     const chatMessage = new SystemMessage(message);
     this.#addMessage(chatMessage);
+
+    // DEBUG
+    console.log(message);
   }
 
   #addMessage(messageEl) {
@@ -173,27 +230,15 @@ class Chat extends HTMLElement {
       this.innerDiv.removeChild(this.innerDiv.firstElementChild);
     }
   }
-
-  disconnectedCallback() {
-    console.log("Custom element removed from page.");
-  }
-
-  adoptedCallback() {
-    console.log("Custom element moved to new page.");
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    console.log(`Attribute ${name} has changed.`);
-  }
 }
 
 customElements.define("chatter-message", ChatterMessage, { extends: "p" });
 customElements.define("system-message", SystemMessage, { extends: "p" });
+customElements.define("chat-emote", Emote, { extends: "img" });
 customElements.define("chat-window", Chat, { extends: "main" });
 
 // So I can reach it from the browser console
 window.ircClient = new TwitchIrcClient(CHANNEL_NAME);
-//window.chat = setupMain();
-//window.chat = document.createElement("chat");
+// Instantiate the chat window and append it to the body
 window.chat = new Chat();
 document.body.appendChild(window.chat);

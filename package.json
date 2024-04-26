@@ -1,13 +1,13 @@
 {
   "name": "twitch_chat_overlay",
-  "version": "0.0.1",
-  "description": "",
+  "version": "0.2.0",
+  "description": "A simple Twitch chat overlay using OBS browser source.",
   "main": "main.js",
   "scripts": {
     "build": "webpack"
   },
   "keywords": [],
-  "author": "",
+  "author": "Yuri Klar",
   "license": "MIT",
   "dependencies": {
     "tmi.js": "^1.8.5"

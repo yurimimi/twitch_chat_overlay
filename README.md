@@ -1,4 +1,4 @@
-It does not support Twitch emotes or badges or anything besides text, really. A very simple thing.
+Twitch emotes support from 0.2.0. Still does not support Twitch badges or third-party emotes.
 
 ### How to
 
