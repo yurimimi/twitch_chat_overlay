@@ -1,4 +1,4 @@
-It does not support Twitch emotes or badges or anything besides text, really. A very simple thing.
+Version with Twitch emotes support can be found in the [emotes branch](https://github.com/yurimimi/twitch_chat_overlay/tree/emotes). Still does not support Twitch badges or third-party emotes.
 
 ### How to
 
