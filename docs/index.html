@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta name="channel_name" content="YOUR_CHANNEL_NAME" />
+
+    <title>Twitch IRC reader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        box-sizing: border-box;
+
+        --text-color: #f9eaf8;
+        --chat-bg: #62626240;
+        --chat-border: #ccc4;
+        --message-bg: #33233ae8;
+        --message-border: #814871;
+
+        --sys-message-bg: #46413be8;
+        --sys-message-border: #9c7c38;
+
+        --message-border-rad: 0.9rem;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        margin: 0;
+
+        background: black;
+      }
+      main,
+      chat-window {
+        -webkit-mask-image: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0),
+          rgba(0, 0, 0, 0.8),
+          rgba(0, 0, 0, 0.95),
+          rgba(0, 0, 0, 1),
+          rgba(0, 0, 0, 1),
+          rgba(0, 0, 0, 1)
+        );
+        mask-image: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0),
+          rgba(0, 0, 0, 0.8),
+          rgba(0, 0, 0, 0.95),
+          rgba(0, 0, 0, 1),
+          rgba(0, 0, 0, 1),
+          rgba(0, 0, 0, 1)
+        );
+
+        display: flex;
+        flex-direction: column-reverse;
+        overflow: hidden;
+
+        height: 400px;
+        max-width: 260px;
+
+        padding: 0.05rem;
+
+        /* background: var(--chat-bg); */
+        /* border: 1px solid var(--chat-border); */
+        border-radius: 0.3rem;
+      }
+      .chat-message {
+        transition: 92ms;
+        opacity: 0;
+
+        margin: 0.45rem 0 0.05rem;
+        padding: 0.4rem 0.65rem;
+
+        font-family: "Noto Sans", sans-serif;
+        font-size: 14px;
+        overflow-wrap: break-word;
+
+        color: var(--text-color);
+        background: var(--message-bg);
+        border: 2px outset var(--message-border);
+        border-radius: var(--message-border-rad);
+      }
+      .sys-message {
+        background: var(--sys-message-bg);
+        border: 2px outset var(--sys-message-border);
+        font-weight: 600;
+      }
+    </style>
+    <script defer src="js/main.js" type="text/javascript"></script>
+  </head>
+  <body></body>
+</html>
